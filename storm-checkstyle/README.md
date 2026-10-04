@@ -49,9 +49,14 @@ at 8, the convention of the code base (Checkstyle's `lineWrappingIndentation` of
 `storm-checkstyle/src/main/resources/storm/normalize-license-headers.groovy` rewrites the
 leading license comment of the module's Java, Groovy, XML, Markdown, YAML, properties, Python and
 shell files to the exact template of
-https://www.apache.org/legal/src-headers.html#headers. A file whose leading comment is not an ASF
-license header, or that carries a copyright notice of anybody but the ASF (a third-party work), is
-left alone:
+https://www.apache.org/legal/src-headers.html#headers, but only when its wording is wrong (a typo,
+missing words). A header with the words of the template is left alone whatever its line wrapping,
+its case (the older `to You` form) or the Javadoc `<p>` an IDE formatter added: rewrapping it would
+touch most files of the code base and pollute `git blame` for no legal gain. Only the license lines
+are replaced: `#` comment lines around them (a `-*- coding -*-` line, a note on the script's
+arguments) are kept, and a `/* */` or `<!-- -->` comment with anything besides the license is left
+alone. A file whose leading comment is not an ASF license header, or that carries a copyright
+notice of anybody but the ASF (a third-party work), is left alone too:
 
 ```sh
 mvn -pl <module> org.codehaus.gmavenplus:gmavenplus-plugin:execute@normalize-license-headers
