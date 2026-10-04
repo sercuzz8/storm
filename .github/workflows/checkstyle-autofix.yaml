@@ -13,8 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Runs the checkstyle auto-fix (storm-checkstyle/README.md) on one module and pushes the result to
-# the branch checkstyle-fix/<module>, from which a pull request against master can be opened.
+# Runs the checkstyle auto-fix (storm-checkstyle/README.md) on one module, pushes the result to a
+# new branch checkstyle-fix/<module>-<run id>-<attempt> (one per execution) and opens a pull request
+# from it against the branch the workflow ran on. The Checkstyle report of the module before and
+# after the fix is attached to the run as an artifact; the violations left after the fix are listed
+# in the pull request.
 name: Checkstyle auto-fix
 
 on:
@@ -27,6 +30,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   autofix:
@@ -76,18 +80,29 @@ jobs:
           name: checkstyle-reports
           path: ${{ runner.temp }}/checkstyle-reports/
           if-no-files-found: ignore
-      - name: Push the result to checkstyle-fix/<module>
+      - name: Push the result to a new branch and open a pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          BRANCH="checkstyle-fix/$MODULE"
+          # one branch per execution, so a run never overwrites the branch of an earlier one (or its open PR)
+          BRANCH="checkstyle-fix/$MODULE-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           # only the module itself (build output is git-ignored), never the tooling files
           git add -A -- "$MODULE"
           if git diff --cached --quiet; then
-            echo "Nothing to fix in $MODULE"
+            echo "Nothing to fix in $MODULE" | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
           git commit -m "Checkstyle auto-fix of $MODULE"
-          git push --force origin "$BRANCH"
-          echo "Pushed $BRANCH; open a pull request against master from it." >> "$GITHUB_STEP_SUMMARY"
+          git push origin "$BRANCH"
+          REPORTS="$RUNNER_TEMP/checkstyle-reports"
+          {
+            echo "Checkstyle auto-fix of \`$MODULE\`, made by [this workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID) (the full reports are in its \`checkstyle-reports\` artifact)."
+            echo
+            cat "$REPORTS/before.md" "$REPORTS/after.md"
+          } > "$RUNNER_TEMP/pr-body.md"
+          PR=$(gh pr create --base "$GITHUB_REF_NAME" --head "$BRANCH" \
+              --title "Checkstyle auto-fix of $MODULE" --body-file "$RUNNER_TEMP/pr-body.md")
+          echo "Opened $PR from $BRANCH" | tee -a "$GITHUB_STEP_SUMMARY"
