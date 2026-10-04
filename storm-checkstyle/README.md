@@ -111,6 +111,17 @@ the result against the build's own rules afterwards:
 mvn validate -pl '!storm-shaded-deps'
 ```
 
+### From GitHub Actions
+
+The `Checkstyle auto-fix` workflow (`.github/workflows/checkstyle-autofix.yaml`, run by hand from
+the Actions tab) runs the three passes and the license header normalization on one module. It
+pushes the result to a new branch `checkstyle-fix/<module>-<run id>-<attempt>` and opens a pull
+request from it against the branch the workflow ran on. The build's Checkstyle check runs before
+and after the fix: the counts, and the violations left per check, are in the pull request and the
+run summary, and both full reports are in the run's `checkstyle-reports` artifact. The module must
+declare `rewrite-maven-plugin` and `gmavenplus-plugin` (directly or through its parent), otherwise
+the job fails instead of silently fixing nothing.
+
 ### Reviewing what it did
 
 Both stages edit source files in place, so `git diff` shows exactly what changed.

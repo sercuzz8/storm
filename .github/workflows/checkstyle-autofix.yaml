@@ -59,6 +59,19 @@ jobs:
         with:
           distribution: temurin
           java-version: 25
+      - name: Check that the module declares the auto-fix plugins
+        run: |
+          # without them the auto-fix executions would run with no configuration and silently fix nothing
+          mvn --batch-mode --quiet -pl "$MODULE" help:effective-pom -Doutput="$RUNNER_TEMP/effective-pom.xml"
+          python3 - "$RUNNER_TEMP/effective-pom.xml" <<'EOF'
+          import sys
+          import xml.etree.ElementTree as ET
+          ns = {'m': 'http://maven.apache.org/POM/4.0.0'}
+          plugins = {p.text for p in ET.parse(sys.argv[1]).getroot().findall('m:build/m:plugins/m:plugin/m:artifactId', ns)}
+          missing = {'rewrite-maven-plugin', 'gmavenplus-plugin'} - plugins
+          if missing:
+              sys.exit(f"::error::the module does not declare {', '.join(sorted(missing))} in its build plugins")
+          EOF
       - name: Build the module and the modules it depends on (the Groovy stage resolves its classpath)
         run: mvn --batch-mode install -DskipTests -Dcheckstyle.skip=true -pl "$MODULE" -am
       - name: Checkstyle report before the fix
