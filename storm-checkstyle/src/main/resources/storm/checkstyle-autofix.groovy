@@ -763,6 +763,15 @@ private static final Map<Integer, String> ESCAPES = [
         if (!s.isLiteral(off)) {
             return NONE
         }
+        int start = off
+        while (start > 0 && s.isLiteral(start - 1)) {
+            start--
+        }
+        // text blocks are left alone: there '\u0020' / '\040' keep a trailing space that a raw space
+        // would lose to the text block's whitespace stripping
+        if (s.has(start, '"""')) {
+            return NONE
+        }
         int end = literalEnd(s, off)
         String lit = s.slice(off, end)
         StringBuilder out = new StringBuilder()
