@@ -57,6 +57,8 @@ jobs:
           java-version: 25
       - name: Build the module and the modules it depends on (the Groovy stage resolves its classpath)
         run: mvn --batch-mode install -DskipTests -Dcheckstyle.skip=true -pl "$MODULE" -am
+      - name: Checkstyle report before the fix
+        run: ./dev-tools/gitact/checkstyle-report.sh before
       - name: Auto-fix the module (OpenRewrite, Groovy, OpenRewrite re-indent)
         run: |
           mvn --batch-mode -pl "$MODULE" -Dcheckstyle.skip=true \
@@ -65,6 +67,15 @@ jobs:
               org.openrewrite.maven:rewrite-maven-plugin:run@checkstyle-reindent-openrewrite
       - name: Normalize the license headers
         run: mvn --batch-mode -pl "$MODULE" -Dcheckstyle.skip=true org.codehaus.gmavenplus:gmavenplus-plugin:execute@normalize-license-headers
+      - name: Checkstyle report after the fix
+        run: ./dev-tools/gitact/checkstyle-report.sh after
+      - name: Upload the Checkstyle reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: checkstyle-reports
+          path: ${{ runner.temp }}/checkstyle-reports/
+          if-no-files-found: ignore
       - name: Push the result to checkstyle-fix/<module>
         run: |
           BRANCH="checkstyle-fix/$MODULE"
