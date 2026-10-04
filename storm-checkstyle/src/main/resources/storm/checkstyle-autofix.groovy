@@ -1324,12 +1324,13 @@ private static final Map<Integer, String> ESCAPES = [
             int k = i + 1
             while (k < end - 1) {
                 if (s.charAt(k) == '\\' as char) {
-                    Matcher u = s.slice(k, end) =~ /^\\u+[0-9a-fA-F]{4}/
-                    k += u.find() ? u.end() : 2
+                    // a whole escape: unicode, octal (up to three digits, \0-\377) or single character
+                    Matcher e = s.slice(k, end) =~ /^\\(u+[0-9a-fA-F]{4}|[0-3][0-7]{0,2}|[4-7][0-7]?)/
+                    k += e.find() ? e.end() : 2
                 } else {
                     k++
                 }
-                    safe << k
+                safe << k
             }
             int limit = lineStart + max - 2
             int cut = -1
